@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "SDR Concessionária — Dulleads",
+  "description": "Painel SDR com status, cadências, templates e mapa de seguimento para o Dulleads CRM",
+  "version": "1.0.0",
+  "permissions": ["storage", "activeTab", "scripting", "clipboardWrite"],
+  "host_permissions": ["*://*.duleads.com.br/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["*://*.duleads.com.br/*"],
+      "js": [
+        "data/statuses.js",
+        "data/templates.js",
+        "data/cadences.js",
+        "sidebar.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["sidebar.css"],
+      "matches": ["*://*.duleads.com.br/*"]
+    }
+  ],
+  "action": {
+    "default_title": "SDR Concessionária — Dulleads"
+  }
+}
