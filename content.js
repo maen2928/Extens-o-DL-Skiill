@@ -120,4 +120,90 @@
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.action === 'toggle_sidebar') toggleSidebar();
   });
+
+  // ─── Click-to-Call ───────────────────────────────────────────────────────
+  const MAX_PARENT_TRAVERSAL_DEPTH = 4;
+
+  function cleanNumber(raw) {
+    return raw.replace(/\D/g, '');
+  }
+
+  function looksLikePhone(text) {
+    const clean = cleanNumber(text);
+    return /^(55\d{10,11}|\d{10,11})$/.test(clean) && clean.length >= 10;
+  }
+
+  document.addEventListener('click', function (e) {
+    // Walk up a few levels to find a phone-like element
+    let el = e.target;
+    for (let i = 0; i < MAX_PARENT_TRAVERSAL_DEPTH; i++) {
+      if (!el) break;
+      const text = (el.innerText || el.textContent || '').trim();
+      if (looksLikePhone(text)) {
+        const numero = cleanNumber(text);
+        console.log('[SDR-CALL] Click-to-call detectado:', numero);
+        chrome.runtime.sendMessage({ action: 'click_to_call', numero });
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      el = el.parentElement;
+    }
+  }, true);
+
+  // ─── Botão Flutuante Auto-Atender ────────────────────────────────────────
+  const AUTO_BTN_ID = 'sdr-auto-atender-btn';
+
+  function createAutoAtenderButton() {
+    if (document.getElementById(AUTO_BTN_ID)) return;
+
+    const btn = document.createElement('button');
+    btn.id = AUTO_BTN_ID;
+    btn.title = 'Auto-Atender ligações (toggle)';
+    btn.style.cssText = [
+      'position:fixed',
+      'bottom:16px',
+      'left:16px',
+      'z-index:2147483646',
+      'padding:8px 12px',
+      'border:none',
+      'border-radius:8px',
+      'cursor:pointer',
+      'font-size:13px',
+      'font-weight:bold',
+      'font-family:system-ui,sans-serif',
+      'box-shadow:0 2px 8px rgba(0,0,0,0.3)',
+      'transition:background 0.2s'
+    ].join(';');
+
+    function applyState(active) {
+      btn.textContent = active ? '🤖 Auto ON' : '🤖 Auto OFF';
+      btn.style.background = active ? '#22c55e' : '#6b7280';
+      btn.style.color = '#fff';
+    }
+
+    // Load initial state
+    chrome.storage.local.get('autoAtender', (result) => {
+      applyState(!!result.autoAtender);
+    });
+
+    btn.addEventListener('click', () => {
+      chrome.storage.local.get('autoAtender', (result) => {
+        const newState = !result.autoAtender;
+        chrome.storage.local.set({ autoAtender: newState }, () => {
+          applyState(newState);
+          console.log('[SDR-CALL] Auto-Atender:', newState ? 'ON' : 'OFF');
+        });
+      });
+    });
+
+    document.body.appendChild(btn);
+  }
+
+  // Inject button after DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', createAutoAtenderButton);
+  } else {
+    createAutoAtenderButton();
+  }
 })();
